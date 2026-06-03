@@ -1,24 +1,60 @@
-# ELROI Predictive Maintenance Platform
+# ELROI – Predictive Maintenance Platform
 
-This repository contains:
-- A Next.js web dashboard (frontend + API routes)
-- A Python TCN prediction backend used by the cooling/analysis flows
+A full-stack predictive maintenance web dashboard built for an industrial startup. ELROI ingests sensor data from ESP32-based IoT hardware, runs an ML + physics ensemble to forecast cooling behaviour, and surfaces results through an interactive UI with real-time alerts and AI-driven insights.
 
-Repository URL:
-- https://github.com/rocklef/Elroi_AG_New1
+> **Stack:** Next.js · Python · PyTorch · Supabase · Google Gemini · Resend
+
+---
+
+## Overview
+
+Industrial equipment failure is costly and difficult to anticipate. ELROI continuously monitors sensor telemetry, predicts the time required for equipment to cool to a safe operational threshold, and alerts engineers before thresholds are breached — reducing unplanned downtime for the client's production line.
+
+### Key Capabilities
+
+- **CSV Upload & Auto-detection** — Accepts sensor exports with or without headers; auto-maps date, temperature, and pressure columns
+- **Cooling-Time Prediction** — Ensemble of LSTM, XGBoost, Ridge Regression, and Newton's Law of Cooling for robust, physics-grounded forecasts
+- **Production Gating** — Reliability checks and safety buffers prevent overconfident predictions from reaching operators
+- **Results Visualisation** — Interactive cooling timeline, experiment-match view, and trend charts
+- **AI Insights** — Optional Gemini Pro integration surfaces natural-language explanations of temperature anomalies
+- **Email Alerts** — Automated threshold-breach notifications via Resend
+- **Auth & Storage** — Supabase-backed authentication and session management
+
+---
+
+## Architecture
+
+```
+ESP32 Sensors
+     │  HTTP polling / CSV export
+     ▼
+Next.js Dashboard  ──────────────────────────────────────┐
+ ├── /api/analyze-temperature  →  Gemini Pro insights     │
+ ├── /api/send-alert           →  Resend email alerts     │
+ └── Supabase Auth / DB                                   │
+                                                          │
+Python TCN Backend  (backend/newton_prediction.py)        │
+ ├── LSTM  (seed ensemble: 42, 123, 7)                    │
+ ├── XGBoost                                              │
+ ├── Ridge Regression                                     │
+ └── Newton's Law of Cooling (physics baseline)  ◄────────┘
+          │
+     Cooling-time forecast + reliability score
+```
+
+---
+
+## Repository
+
+- **GitHub:** [https://github.com/rocklef/Elroi_AG_New1](https://github.com/rocklef/Elroi_AG_New1) *(private)*
 
 ---
 
 ## Web Dashboard
 
-### Readme
-- This file is the main setup/run reference.
+### Environment Setup
 
-### GitHub repo
-- https://github.com/rocklef/Elroi_AG_New1
-
-### Environment secrets
-Create `.env.local` at repo root with:
+Create `.env.local` at the repo root:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
@@ -27,65 +63,49 @@ GEMINI_API_KEY=your_google_ai_key
 RESEND_API_KEY=your_resend_key
 ```
 
-Where these are used:
-- Supabase: `src/lib/supabase.js`
-- Gemini insights API: `src/app/api/analyze-temperature/route.js`
-- Email alerts API: `src/app/api/send-alert/route.js`
+| Variable | Used In | Required |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `src/lib/supabase.js` | ✅ |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `src/lib/supabase.js` | ✅ |
+| `GEMINI_API_KEY` | `src/app/api/analyze-temperature/route.js` | Optional |
+| `RESEND_API_KEY` | `src/app/api/send-alert/route.js` | Optional |
 
-Notes:
-- `GEMINI_API_KEY` and `RESEND_API_KEY` are optional if you do not use AI insights/email alerts.
-- `.env.local` is intentionally ignored by Git.
+> `.env.local` is gitignored and must be created manually.
 
-### Additional setup guide and versions
-Runtime versions in current project:
-- Node.js: 20+ recommended
-- npm: 10+ recommended
-- Next.js: 16.0.1
-- React: 19.2.0
+### Runtime Versions
 
-Setup steps:
-1. Clone repo
-2. Install packages
-3. Create `.env.local`
-4. Start dev server
+| Tool | Version |
+|---|---|
+| Node.js | 20+ |
+| npm | 10+ |
+| Next.js | 16.0.1 |
+| React | 19.2.0 |
 
-Commands:
+### Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-### Command to run dev server
-
-```bash
-npm run dev
-```
-
-Open: http://localhost:3000
+Open: [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## AI (TCN Backend)
+## AI / TCN Backend
 
-### Readme
-- AI backend code is under `backend/`
-- Main runtime script: `backend/newton_prediction.py`
+Backend code lives under `backend/`. The main prediction script is `backend/newton_prediction.py`.
 
-### Input format and sample input
-The predictor accepts CSV with either headers or no headers.
+### Input Format
 
-Expected required fields:
-- date/time column
-- temperature column
-- pressure column is optional
+Accepts CSV with or without headers.
 
-If no header, it assumes first columns are:
-1. date
-2. temperature
-3. pressure (optional)
+**Required columns (in order if no header):**
+1. `DATE` — datetime string (e.g. `04-01-2026 10.30`)
+2. `TEMPERATURE` — float, degrees Celsius
+3. `PRESSURE` — float, optional
 
-Sample CSV:
+**Sample input:**
 
 ```csv
 DATE,TEMPERATURE,PRESSURE
@@ -94,113 +114,104 @@ DATE,TEMPERATURE,PRESSURE
 04-01-2026 10.32,87.90,-54.61
 ```
 
-### Training dataset link (or file)
-Files referenced by training scripts (`backend/training20.py`) are:
+### Model Artifacts
+
+The runtime expects the `PrognosisIQ_v15_outputs` directory (or a ZIP) with:
+
+```
+PrognosisIQ_v15_outputs/
+├── model_config_v15.json
+└── ensemble/
+    ├── scalers_v15.pkl
+    ├── seed_42.pt
+    ├── seed_123.pt
+    └── seed_7.pt
+```
+
+Place this directory (or pass the ZIP path as a CLI argument) in `backend/` before running.
+
+### Training Data
+
+Training scripts (`backend/training20.py`) reference the following CSV files — place them in `backend/` if retraining:
+
+- `Report_20250604-1.csv`
 - `Report_20250604-2.csv`
 - `Report_20250605-1.csv`
 - `Report_20250605-2.csv`
 - `Report_20250611-1.csv`
 - `Report_20250611-2.csv`
 - `Report_20250611-3.csv`
-- `Report_20250604-1.csv`
 
-These files are not guaranteed to be committed in this repo. If missing, place them in `backend/`.
-
-### Model link (or file)
-Current TCN runtime in `backend/newton_prediction.py` expects artifacts from:
-- `PrognosisIQ_v15_outputs` directory
-
-or via ZIP setup argument:
-- `PrognosisIQ_v15_outputs.zip`
-
-Expected artifact files include:
-- `model_config_v15.json`
-- `ensemble/scalers_v15.pkl`
-- `ensemble/seed_42.pt`
-- `ensemble/seed_123.pt`
-- `ensemble/seed_7.pt`
-
-Legacy artifacts (older flow) also exist under:
-- `backend/saved_models/`
-
-### Requirement file
-Use these requirement files for backend:
-- `backend/requirements_ml.txt` (primary for current ML runtime)
-- `backend/requirements2.txt` (torch/pandas/sklearn stack)
-
-Optional/legacy:
-- `backend/requirements.txt`
-
-### Environment secrets
-The pure TCN CLI predictor itself does not require external API secrets.
-
-For full app features, secrets are still required at root `.env.local`:
-- `GEMINI_API_KEY` (insights endpoint)
-- `RESEND_API_KEY` (email alert endpoint)
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-### Python version
-Current local backend virtual environment was created with:
-- Python 3.12.2
-
-Recommended:
-- Python 3.10+ (3.12.2 tested in this workspace)
-
-### Additional setup guide
-From repo root:
+### Python Setup
 
 ```bash
 cd backend
 python -m venv venv
-venv\Scripts\activate
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # macOS / Linux
 pip install -r requirements_ml.txt
 pip install -r requirements2.txt
 ```
 
-If you have a model ZIP and need extraction during run, pass ZIP path in CLI command.
+**Python version:** 3.10+ (tested on 3.12.2)
 
-### Full command to run the app
-Run full web app (recommended):
-
-```bash
-npm install
-npm run dev
-```
-
-Run AI predictor directly (CLI):
+### CLI Usage
 
 ```bash
+# Basic prediction
 cd backend
 venv\Scripts\python.exe newton_prediction.py uploads\your_file.csv 40 2
-```
 
-With model ZIP extraction:
-
-```bash
-cd backend
+# With model ZIP extraction
 venv\Scripts\python.exe newton_prediction.py uploads\your_file.csv 40 2 C:\path\to\PrognosisIQ_v15_outputs.zip
 ```
 
-CLI arguments:
-1. CSV path
-2. threshold temperature (use 40)
-3. band index (default 2)
-4. optional model ZIP path
+**Arguments:**
+
+| Position | Argument | Default | Description |
+|---|---|---|---|
+| 1 | `csv_path` | — | Path to input CSV |
+| 2 | `threshold` | `40` | Target cooling temperature (°C) |
+| 3 | `band_index` | `2` | Prediction band selection |
+| 4 | `zip_path` | *(optional)* | Path to model artifacts ZIP |
 
 ---
 
-## Quick Start (One Pass)
+## Quick Start (Full Stack)
 
 ```bash
 git clone https://github.com/rocklef/Elroi_AG_New1
 cd Elroi_AG_New1
+
+# Frontend
 npm install
+
+# Backend
 cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements_ml.txt
 pip install -r requirements2.txt
 cd ..
+
+# Create .env.local with your keys, then:
 npm run dev
 ```
+
+---
+
+## Requirement Files
+
+| File | Purpose |
+|---|---|
+| `backend/requirements_ml.txt` | Primary — current ML runtime |
+| `backend/requirements2.txt` | PyTorch / pandas / scikit-learn stack |
+| `backend/requirements.txt` | Legacy / optional |
+
+---
+
+## Notes
+
+- The pure TCN CLI predictor does not require any API keys.
+- Legacy model artifacts are stored under `backend/saved_models/` for reference.
+- Full app features (AI insights, email alerts) require `GEMINI_API_KEY` and `RESEND_API_KEY` respectively.
