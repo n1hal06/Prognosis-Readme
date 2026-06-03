@@ -46,7 +46,7 @@ Python TCN Backend  (backend/newton_prediction.py)        │
 
 ## Repository
 
-- **GitHub:** [https://github.com/rocklef/Elroi_AG_New1](https://github.com/rocklef/Elroi_AG_New1) *(private)*
+- **GitHub:** [https://github.com/n1hal06/Prognosis_Full_Integration.git](https://github.com/n1hal06/Prognosis_Full_Integration.git) *(private)*
 
 ---
 
